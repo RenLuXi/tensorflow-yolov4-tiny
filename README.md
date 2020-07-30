@@ -21,7 +21,7 @@ Tested on Python 3.6, tensorflow 1.14.0 on Ubuntu 18.04
 5. Openvino-Object Detection YOLO\*  Python Demo
 `python sync_detection_yolo.py`
 
-####Optional Flags
+#### Optional Flags
 1. convert_weights_pb.py:
     1. `--class_names`
         1. Path to the class names file
