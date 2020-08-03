@@ -2,11 +2,14 @@
 
 Adapted from https://github.com/mystic123/tensorflow-yolo-v3
 
-Tested on Python 3.6, tensorflow 1.14.0 on Ubuntu 18.04
+Refer to how this version(https://github.com/TNTWEN/OpenVINO-YOLOV4) handles split
 
+Tested on Python 3.6, tensorflow 1.14.0, Ubuntu 18.04, l_openvino_toolkit_p_2020.3.194/2020.4.287
+
+Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz fps=30
 ## Todo list:
 - [x] Weights converter to pb
-- [x] Pb converter to IR
+- [x] Syns detect yolo
 
 ## How to work:
 1. Download COCO class names file: 
@@ -17,11 +20,11 @@ Tested on Python 3.6, tensorflow 1.14.0 on Ubuntu 18.04
 4. Pb converter to IR
 `cp ./yolo_v4_tiny.json  /opt/intel/openvino/deployment_tools/model_optimizer/extensions/front/tf`
 `cd /opt/intel/openvino/deployment_tools/model_optimizer`
-`python mo_tf.py --input_model yolov4-tiny.pb --tensorflow_use_custom_operations_config extensions/front/tf/yolo_v4_tiny.json --batch 1`
+`python mo.py --input_model yolov4-tiny.pb --transformations_config ./extensions/front/tf/yolo_v4_tiny.json --batch 1`
 5. Openvino-Object Detection YOLO\*  Python Demo
 `python sync_detection_yolo.py`
 
-#### Optional Flags
+####Optional Flags
 1. convert_weights_pb.py:
     1. `--class_names`
         1. Path to the class names file
@@ -39,11 +42,3 @@ Tested on Python 3.6, tensorflow 1.14.0 on Ubuntu 18.04
     2. `-labels`
         1. Path to the coco.names
  
-####  issue
-When I run `python sync_detection_yolo.py`
-
-Got an error :
-`out_blob = out_blob.reshape(self.net.layers[self.net.layers[layer_name].parents[0]].out_data[0].shape)
-KeyError: 'detector/yolo-v4-tiny/split.0'`
-
-If I ignore these three layers(split.0,split_1.0,split_2.0), there is no detection object.

@@ -10,6 +10,7 @@ import sys
 from argparse import ArgumentParser, SUPPRESS
 from math import exp as exp
 from time import time
+from time import perf_counter
 
 import cv2
 from openvino.inference_engine import IENetwork, IECore
@@ -169,11 +170,11 @@ class ObjectDetection(object):
                           format(self.args.device, ', '.join(not_supported_layers)))
                 sys.exit(1)
 
-        assert len(self.net.inputs.keys()) == 1, "Sample supports only YOLO V3 based single input topologies"
+        assert len(self.net.input_info.keys()) == 1, "Sample supports only YOLO V3 based single input topologies"
 
         # ---------------------------------------------- 4. Preparing inputs -----------------------------------------------
         log.info("Preparing inputs")
-        self.input_blob = next(iter(self.net.inputs))
+        self.input_blob = next(iter(self.net.input_info))
 
         #  Defaulf batch_size is 1
         self.net.batch_size = 1
@@ -201,12 +202,11 @@ class ObjectDetection(object):
         while cap.isOpened():
             # Here is the first asynchronous point: in the Async mode, we capture frame to populate the NEXT infer request
             # in the regular mode, we capture frame to the CURRENT infer request
-            start_time0 = time()
             if not ret:
                 break
 
             # Read and pre-process input images
-            n, c, h, w = self.net.inputs[self.input_blob].shape
+            n, c, h, w = self.net.input_info[self.input_blob].input_data.shape
 
             request_id = cur_request_id
             in_frame = cv2.resize(frame, (w, h))
@@ -224,11 +224,15 @@ class ObjectDetection(object):
             objects = list()
             if self.exec_net.requests[cur_request_id].wait(-1) == 0:
                 output = self.exec_net.requests[cur_request_id].outputs
-                for layer_name, out_blob in output.items():
-                    print("-----------The layer name of collecting object detection results:----------")
-                    print(layer_name)
+                # for layer_name, out_blob in output.items():
+                    # print("-----------The layer name of collecting object detection results:----------")
+                    # print(layer_name)
                 start_time = time()
                 for layer_name, out_blob in output.items():
+                    # if layer_name == 'detector/yolo-v4-tiny/strided_slice/Split.0' or layer_name == 'detector/yolo-v4-tiny/strided_slice_1/Split.0' \
+                    #         or layer_name == 'detector/yolo-v4-tiny/strided_slice_2/Split.0':
+                    #     pass
+                    # else:
                     out_blob = out_blob.reshape(self.net.layers[self.net.layers[layer_name].parents[0]].out_data[0].shape)
                     layer_params = YoloParams(self.net.layers[layer_name].params, out_blob.shape[2])
                     objects += parse_yolo_region(out_blob, in_frame.shape[2:],
@@ -284,8 +288,6 @@ class ObjectDetection(object):
             cv2.putText(frame, async_mode_message, (10, int(origin_im_size[0] - 20)), cv2.FONT_HERSHEY_COMPLEX, 0.5,
                         (10, 10, 200), 1)
             cv2.putText(frame, parsing_message, (15, 30), cv2.FONT_HERSHEY_COMPLEX, 0.5, (10, 10, 200), 1)
-            all_time = time() - start_time0
-            print('The processing time of one frame is', all_time)
             return frame
 
 
@@ -293,14 +295,22 @@ if __name__ == '__main__':
     yolo = ObjectDetection()
     cap = cv2.VideoCapture(0)
     cv2.namedWindow('frame', cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)
+    last_start_time = perf_counter()
+    count_frame = 0
+    fps_time = 0
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
+        start_time = perf_counter()
         out_frame = yolo.inference(frame)
-
+        all_time = perf_counter() - start_time
+        print('The processing time of one frame is', all_time)
+        cv2.imwrite("result.jpg", frame)
+        count_frame = count_frame + 1
+        print("FPS is", count_frame / (perf_counter() - last_start_time))
         cv2.imshow("frame", frame)
-        key = cv2.waitKey(1)
+        key = cv2.waitKey(3)
         if key == 27:
             break
 
